@@ -141,6 +141,33 @@ const getOrders = async (req, res) => {
   }
 };
 
+// @desc    Cancel order
+// @route   PUT /api/orders/:id/cancel
+// @access  Private
+const cancelOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (order) {
+      // If user is a buyer, make sure it is their own order
+      if (req.user.role === 'buyer' && order.user.toString() !== req.user._id.toString()) {
+        res.status(401).json({ message: 'Not authorized to cancel this order' });
+        return;
+      }
+
+      order.isCancelled = true;
+      order.cancelledAt = Date.now();
+
+      const updatedOrder = await order.save();
+      res.json(updatedOrder);
+    } else {
+      res.status(404).json({ message: 'Order not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 export {
   addOrderItems,
   getOrderById,
@@ -148,4 +175,5 @@ export {
   updateOrderToDelivered,
   getMyOrders,
   getOrders,
+  cancelOrder,
 };

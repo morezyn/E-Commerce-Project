@@ -7,20 +7,21 @@ const AdminDashboardScreen = () => {
   const { userInfo, API_URL, showToast } = useContext(StoreContext);
   const navigate = useNavigate();
 
-  // Redirect if not admin
+  // Redirect if not admin or seller
   useEffect(() => {
-    if (!userInfo || !userInfo.isAdmin) {
+    if (!userInfo || (userInfo.role !== 'seller' && !userInfo.isAdmin)) {
       navigate('/');
     }
   }, [userInfo, navigate]);
 
   // Dashboard Stats States
-  const [stats, setStats] = useState({ totalSales: 0, orderCount: 0, userCount: 0 });
+  const [stats, setStats] = useState({ totalSales: 0, orderCount: 0, userCount: 0, totalUnitsSold: 0, productSoldCounts: {} });
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Edit / Add Form State
   const [editingProduct, setEditingProduct] = useState(null); // null means list view, non-null is the product object we're editing
+  const [isNewProduct, setIsNewProduct] = useState(false);
   const [formFields, setFormFields] = useState({
     name: '',
     price: 0,
@@ -40,26 +41,50 @@ const AdminDashboardScreen = () => {
       const dataProducts = await resProducts.json();
       setProducts(dataProducts);
 
-      // 2. Fetch orders (Admin)
+      // 2. Fetch orders
       const resOrders = await fetch(`${API_URL}/api/orders`, {
         headers: { Authorization: `Bearer ${userInfo.token}` }
       });
-      const dataOrders = await resOrders.json();
+      const ordersData = await resOrders.json();
+      const dataOrders = Array.isArray(ordersData) ? ordersData : [];
 
-      // 3. Fetch users (Admin)
-      const resUsers = await fetch(`${API_URL}/api/users`, {
-        headers: { Authorization: `Bearer ${userInfo.token}` }
-      });
-      const dataUsers = await resUsers.json();
+      // Try fetching users if admin
+      let userCount = 0;
+      if (userInfo.isAdmin) {
+        try {
+          const resUsers = await fetch(`${API_URL}/api/users`, {
+            headers: { Authorization: `Bearer ${userInfo.token}` }
+          });
+          if (resUsers.ok) {
+            const dataUsers = await resUsers.json();
+            userCount = dataUsers.length;
+          }
+        } catch (e) {
+          console.log('Skipping user list fetch');
+        }
+      }
 
       // Calculate stats
-      const paidOrders = dataOrders.filter(o => o.isPaid);
+      const activeOrders = dataOrders.filter(o => !o.isCancelled);
+      const paidOrders = activeOrders.filter(o => o.isPaid);
       const totalSales = paidOrders.reduce((acc, o) => acc + o.totalPrice, 0);
+
+      // Statistics of amount of products sold
+      let totalUnitsSold = 0;
+      const productSoldCounts = {};
+      paidOrders.forEach(order => {
+        order.orderItems.forEach(item => {
+          totalUnitsSold += item.qty;
+          productSoldCounts[item.name] = (productSoldCounts[item.name] || 0) + item.qty;
+        });
+      });
 
       setStats({
         totalSales,
-        orderCount: dataOrders.length,
-        userCount: dataUsers.length
+        orderCount: activeOrders.length,
+        userCount,
+        totalUnitsSold,
+        productSoldCounts
       });
 
     } catch (err) {
@@ -85,6 +110,7 @@ const AdminDashboardScreen = () => {
       if (!response.ok) throw new Error(data.message || 'Create product failed');
 
       showToast('Template product created! Editing now.');
+      setIsNewProduct(true);
       handleStartEdit(data);
     } catch (err) {
       showToast(err.message, 'error');
@@ -104,7 +130,20 @@ const AdminDashboardScreen = () => {
     });
   };
 
-  const handleCancelEdit = () => {
+  const handleCancelEdit = async () => {
+    if (isNewProduct && editingProduct) {
+      try {
+        await fetch(`${API_URL}/api/products/${editingProduct._id}`, {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${userInfo.token}`
+          }
+        });
+      } catch (err) {
+        console.error('Failed to clean up draft product:', err);
+      }
+    }
+    setIsNewProduct(false);
     setEditingProduct(null);
   };
 
@@ -131,6 +170,7 @@ const AdminDashboardScreen = () => {
       if (!response.ok) throw new Error(data.message || 'Update product failed');
 
       showToast('Product updated successfully!');
+      setIsNewProduct(false);
       setEditingProduct(null);
       fetchData(); // Reload list
     } catch (err) {
@@ -177,7 +217,7 @@ const AdminDashboardScreen = () => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <h1 style={{ fontSize: '2rem', fontFamily: 'var(--font-family-title)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <ShieldCheck size={28} className="gradient-text" style={{ color: 'var(--color-accent)' }} /> Admin <span className="gradient-text">Console</span>
+          <ShieldCheck size={28} className="gradient-text" style={{ color: 'var(--color-accent)' }} /> Seller <span className="gradient-text">Dashboard</span>
         </h1>
 
         {!editingProduct && (
@@ -220,16 +260,60 @@ const AdminDashboardScreen = () => {
             </div>
           </div>
 
-          {/* Users Metric */}
+          {/* Units Sold Metric */}
           <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', padding: '1.5rem' }}>
-            <div style={{ background: 'rgba(34, 197, 94, 0.1)', padding: '0.75rem', borderRadius: '12px' }}>
-              <UserCheck size={28} style={{ color: '#4ade80' }} />
+            <div style={{ background: 'rgba(34, 197, 94, 0.15)', padding: '0.75rem', borderRadius: '12px' }}>
+              <ShieldCheck size={28} style={{ color: '#4ade80' }} />
             </div>
             <div>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Registered Users</span>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Total Units Sold</span>
               <h2 style={{ fontSize: '1.5rem', fontFamily: 'var(--font-family-title)', color: 'var(--text-primary)', marginTop: '0.25rem' }}>
-                {stats.userCount}
+                {stats.totalUnitsSold}
               </h2>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Statistics Section */}
+      {!editingProduct && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+          {/* Sales Stats Card */}
+          <div className="glass-card" style={{ padding: '1.5rem' }}>
+            <h3 style={{ fontSize: '1.1rem', fontFamily: 'var(--font-family-title)', marginBottom: '1rem', color: 'var(--color-accent-light)' }}>
+              Products Sold Statistics
+            </h3>
+            {Object.keys(stats.productSoldCounts).length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>No products sold yet.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {Object.entries(stats.productSoldCounts).map(([name, count]) => (
+                  <div key={name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '0.4rem' }}>
+                    <span>{name}</span>
+                    <span style={{ fontWeight: '700', color: 'var(--color-secondary)' }}>{count} units sold</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Inventory Levels Card */}
+          <div className="glass-card" style={{ padding: '1.5rem' }}>
+            <h3 style={{ fontSize: '1.1rem', fontFamily: 'var(--font-family-title)', marginBottom: '1rem', color: 'var(--color-accent-light)' }}>
+              Inventory Levels (Stock Left)
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '300px', overflowY: 'auto' }}>
+              {products.map((product) => (
+                <div key={product._id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '0.4rem' }}>
+                  <span>{product.name}</span>
+                  <span style={{
+                    fontWeight: '700',
+                    color: product.countInStock <= 5 ? '#f87171' : '#4ade80'
+                  }}>
+                    {product.countInStock} left
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -325,15 +409,27 @@ const AdminDashboardScreen = () => {
 
               <div className="form-group">
                 <label htmlFor="prod-category">Category</label>
-                <input
+                <select
                   id="prod-category"
-                  type="text"
                   name="category"
                   value={formFields.category}
                   onChange={handleFormFieldChange}
                   className="form-input"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    background: 'var(--bg-secondary)',
+                    color: 'white',
+                    border: '1px solid var(--border-glass)',
+                    borderRadius: 'var(--border-radius-sm)',
+                    cursor: 'pointer'
+                  }}
                   required
-                />
+                >
+                  <option value="Electronics">Electronics</option>
+                  <option value="Wearables">Wearables</option>
+                  <option value="Accessories">Accessories</option>
+                </select>
               </div>
             </div>
 

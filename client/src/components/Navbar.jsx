@@ -134,7 +134,7 @@ const Navbar = () => {
                       Profile & Orders
                     </Link>
 
-                    {userInfo.isAdmin && (
+                    {(userInfo.role === 'seller' || userInfo.isAdmin) && (
                       <Link
                         to="/admin/dashboard"
                         onClick={() => setDropdownOpen(false)}
@@ -149,7 +149,7 @@ const Navbar = () => {
                         }}
                       >
                         <ShieldCheck size={16} />
-                        Admin Dashboard
+                        Seller Dashboard
                       </Link>
                     )}
 

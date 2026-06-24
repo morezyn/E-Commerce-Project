@@ -5,12 +5,13 @@ import { MapPin, CreditCard, ShoppingBag, DollarSign, Calendar, Sparkles, CheckC
 
 const OrderScreen = () => {
   const { id } = useParams();
-  const { getOrderDetails, payOrder, deliverOrder, userInfo, showToast } = useContext(StoreContext);
+  const { getOrderDetails, payOrder, deliverOrder, cancelOrder, userInfo, showToast } = useContext(StoreContext);
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [delivering, setDelivering] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   const fetchOrder = async () => {
     setLoading(true);
@@ -51,6 +52,20 @@ const OrderScreen = () => {
       showToast(err.message, 'error');
     } finally {
       setDelivering(false);
+    }
+  };
+
+  const handleCancelOrder = async () => {
+    if (!window.confirm('Are you sure you want to cancel this order?')) return;
+    setCancelling(true);
+    try {
+      const updatedOrder = await cancelOrder(id);
+      setOrder(updatedOrder);
+      showToast('Order cancelled successfully!');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -108,7 +123,11 @@ const OrderScreen = () => {
               {order.shippingAddress.address}, {order.shippingAddress.city}, {order.shippingAddress.postalCode}, {order.shippingAddress.country}
             </p>
             <div style={{ marginTop: '0.5rem' }}>
-              {order.isDelivered ? (
+              {order.isCancelled ? (
+                <div className="badge badge-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                  Cancelled on {new Date(order.cancelledAt).toLocaleDateString()}
+                </div>
+              ) : order.isDelivered ? (
                 <div className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
                   <Calendar size={12} /> Delivered on {new Date(order.deliveredAt).toLocaleDateString()}
                 </div>
@@ -125,7 +144,9 @@ const OrderScreen = () => {
             </h3>
             <p><strong>Method: </strong>{order.paymentMethod}</p>
             <div style={{ marginTop: '0.5rem' }}>
-              {order.isPaid ? (
+              {order.isCancelled ? (
+                <div className="badge badge-danger">Cancelled</div>
+              ) : order.isPaid ? (
                 <div className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
                   <Calendar size={12} /> Paid on {new Date(order.paidAt).toLocaleDateString()}
                 </div>
@@ -194,7 +215,7 @@ const OrderScreen = () => {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
             {/* Pay Simulation Button */}
-            {!order.isPaid && (
+            {!order.isPaid && !order.isCancelled && (
               <button
                 onClick={handlePaymentSimulation}
                 disabled={paying}
@@ -210,7 +231,7 @@ const OrderScreen = () => {
             )}
 
             {/* Admin Deliver Button */}
-            {userInfo && userInfo.isAdmin && order.isPaid && !order.isDelivered && (
+            {userInfo && (userInfo.role === 'seller' || userInfo.isAdmin) && order.isPaid && !order.isDelivered && !order.isCancelled && (
               <button
                 onClick={handleDeliverSimulation}
                 disabled={delivering}
@@ -228,6 +249,18 @@ const OrderScreen = () => {
                     <CheckCircle2 size={18} /> Mark Order As Shipped / Delivered
                   </>
                 )}
+              </button>
+            )}
+
+            {/* Cancel Order Button */}
+            {!order.isCancelled && !order.isDelivered && userInfo && (userInfo.role === 'buyer' || userInfo.isAdmin) && (
+              <button
+                onClick={handleCancelOrder}
+                disabled={cancelling}
+                className="btn btn-danger"
+                style={{ width: '100%', padding: '0.85rem' }}
+              >
+                {cancelling ? 'Cancelling...' : 'Cancel Order'}
               </button>
             )}
           </div>

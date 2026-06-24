@@ -192,16 +192,22 @@ const ProfileScreen = () => {
                       Total: ${order.totalPrice.toFixed(2)}
                     </p>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      {order.isPaid ? (
-                        <span className="badge badge-success">Paid</span>
+                      {order.isCancelled ? (
+                        <span className="badge badge-danger">Cancelled</span>
                       ) : (
-                        <span className="badge badge-danger">Unpaid</span>
-                      )}
-                      
-                      {order.isDelivered ? (
-                        <span className="badge badge-success">Delivered</span>
-                      ) : (
-                        <span className="badge badge-warning">Pending</span>
+                        <>
+                          {order.isPaid ? (
+                            <span className="badge badge-success">Paid</span>
+                          ) : (
+                            <span className="badge badge-danger">Unpaid</span>
+                          )}
+                          
+                          {order.isDelivered ? (
+                            <span className="badge badge-success">Delivered</span>
+                          ) : (
+                            <span className="badge badge-warning">Pending</span>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>

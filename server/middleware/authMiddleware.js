@@ -37,4 +37,16 @@ const admin = (req, res, next) => {
   }
 };
 
-export { protect, admin };
+const seller = (req, res, next) => {
+  if (req.user) {
+    const role = req.user.role || (req.user.isAdmin ? 'seller' : 'buyer');
+    if (role === 'seller' || req.user.isAdmin) {
+      next();
+      return;
+    }
+  }
+  res.status(401);
+  res.json({ message: 'Not authorized as a seller' });
+};
+
+export { protect, admin, seller };

@@ -8,6 +8,7 @@ const RegisterScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [role, setRole] = useState('seller');
   const [loading, setLoading] = useState(false);
 
   const { registerUser, userInfo, showToast } = useContext(StoreContext);
@@ -32,7 +33,7 @@ const RegisterScreen = () => {
     }
 
     setLoading(true);
-    const result = await registerUser(name, email, password);
+    const result = await registerUser(name, email, password, role);
     setLoading(false);
 
     if (result.success) {
@@ -158,6 +159,32 @@ const RegisterScreen = () => {
                 style={{ paddingLeft: '2.5rem' }}
                 required
               />
+            </div>
+          </div>
+
+          {/* Role selection dropdown */}
+          <div className="form-group">
+            <label htmlFor="role-select">Account Role</label>
+            <div style={{ position: 'relative' }}>
+              <select
+                id="role-select"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className="form-input"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem 1rem',
+                  background: 'var(--bg-secondary)',
+                  color: 'white',
+                  border: '1px solid var(--border-glass)',
+                  borderRadius: 'var(--border-radius-sm)',
+                  cursor: 'pointer'
+                }}
+                required
+              >
+                <option value="seller">Seller</option>
+                <option value="buyer">Buyer</option>
+              </select>
             </div>
           </div>
 

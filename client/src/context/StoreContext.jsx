@@ -132,12 +132,12 @@ export const StoreProvider = ({ children }) => {
     }
   };
 
-  const registerUser = async (name, email, password) => {
+  const registerUser = async (name, email, password, role) => {
     try {
       const response = await fetch(`${API_URL}/api/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, role }),
       });
 
       const data = await response.json();
@@ -268,6 +268,25 @@ export const StoreProvider = ({ children }) => {
     }
   };
 
+  const cancelOrder = async (orderId) => {
+    try {
+      const response = await fetch(`${API_URL}/api/orders/${orderId}/cancel`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${userInfo.token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Failed to cancel order');
+      showToast('Order cancelled successfully!');
+      return data;
+    } catch (err) {
+      showToast(err.message, 'error');
+      throw err;
+    }
+  };
+
   const getMyOrders = async () => {
     try {
       const response = await fetch(`${API_URL}/api/orders/myorders`, {
@@ -321,6 +340,7 @@ export const StoreProvider = ({ children }) => {
         getOrderDetails,
         payOrder,
         deliverOrder,
+        cancelOrder,
         getMyOrders,
         API_URL,
       }}

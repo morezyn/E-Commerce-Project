@@ -6,7 +6,7 @@ import { ArrowLeft, Star, ShoppingCart, Shield, Truck, RotateCcw } from 'lucide-
 const ProductScreen = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { addToCart, API_URL, showToast } = useContext(StoreContext);
+  const { addToCart, API_URL, showToast, userInfo } = useContext(StoreContext);
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -166,14 +166,29 @@ const ProductScreen = () => {
               </div>
             )}
 
-            <button
-              onClick={handleAddToCart}
-              disabled={product.countInStock === 0}
-              className="btn btn-primary"
-              style={{ width: '100%', padding: '1rem' }}
-            >
-              <ShoppingCart size={20} /> Add To Shopping Cart
-            </button>
+            {userInfo && userInfo.role === 'seller' ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '0.75rem',
+                borderRadius: 'var(--border-radius-sm)',
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                color: '#f87171',
+                fontSize: '0.9rem',
+                fontWeight: '500'
+              }}>
+                Sellers cannot purchase products (merchant mode).
+              </div>
+            ) : (
+              <button
+                onClick={handleAddToCart}
+                disabled={product.countInStock === 0}
+                className="btn btn-primary"
+                style={{ width: '100%', padding: '1rem' }}
+              >
+                <ShoppingCart size={20} /> Add To Shopping Cart
+              </button>
+            )}
           </div>
 
           {/* Assurances */}
