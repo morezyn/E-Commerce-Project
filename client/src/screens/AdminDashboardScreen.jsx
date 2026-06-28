@@ -37,9 +37,15 @@ const AdminDashboardScreen = () => {
     setLoading(true);
     try {
       // 1. Fetch products
-      const resProducts = await fetch(`${API_URL}/api/products`);
+      const productsUrl = userInfo.isAdmin
+        ? `${API_URL}/api/products`
+        : `${API_URL}/api/products?seller=${userInfo._id}`;
+      const resProducts = await fetch(productsUrl);
       const dataProducts = await resProducts.json();
       setProducts(dataProducts);
+
+      // Create a set of seller's product IDs for quick lookup (if seller and not admin)
+      const sellerProductIds = new Set(dataProducts.map(p => p._id.toString()));
 
       // 2. Fetch orders
       const resOrders = await fetch(`${API_URL}/api/orders`, {
@@ -64,18 +70,29 @@ const AdminDashboardScreen = () => {
         }
       }
 
-      // Calculate stats
-      const activeOrders = dataOrders.filter(o => !o.isCancelled);
-      const paidOrders = activeOrders.filter(o => o.isPaid);
-      const totalSales = paidOrders.reduce((acc, o) => acc + o.totalPrice, 0);
+      // Filter orders based on seller's products
+      const filteredOrders = dataOrders.filter(order => {
+        if (userInfo.isAdmin) return true;
+        return order.orderItems.some(item => sellerProductIds.has(item.product ? item.product.toString() : ''));
+      });
 
-      // Statistics of amount of products sold
+      const activeOrders = filteredOrders.filter(o => !o.isCancelled);
+      const paidOrders = activeOrders.filter(o => o.isPaid);
+
+      let totalSales = 0;
       let totalUnitsSold = 0;
       const productSoldCounts = {};
+
       paidOrders.forEach(order => {
         order.orderItems.forEach(item => {
-          totalUnitsSold += item.qty;
-          productSoldCounts[item.name] = (productSoldCounts[item.name] || 0) + item.qty;
+          const itemProductId = item.product ? item.product.toString() : '';
+          if (userInfo.isAdmin || sellerProductIds.has(itemProductId)) {
+            const itemPrice = item.price || 0;
+            const itemQty = item.qty || 0;
+            totalSales += itemPrice * itemQty;
+            totalUnitsSold += itemQty;
+            productSoldCounts[item.name] = (productSoldCounts[item.name] || 0) + itemQty;
+          }
         });
       });
 

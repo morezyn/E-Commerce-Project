@@ -11,24 +11,59 @@ const ProductScreen = () => {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [loadingReview, setLoadingReview] = useState(false);
+
+  const fetchProduct = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/products/${id}`);
+      if (!response.ok) throw new Error('Product not found');
+      const data = await response.json();
+      setProduct(data);
+    } catch (err) {
+      showToast(err.message, 'error');
+      navigate('/');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchProduct = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch(`${API_URL}/api/products/${id}`);
-        if (!response.ok) throw new Error('Product not found');
-        const data = await response.json();
-        setProduct(data);
-      } catch (err) {
-        showToast(err.message, 'error');
-        navigate('/');
-      } finally {
-        setLoading(false);
-      }
-    };
+    setLoading(true);
     fetchProduct();
   }, [id, navigate, API_URL]);
+
+  const submitReviewHandler = async (e) => {
+    e.preventDefault();
+    if (!comment) {
+      showToast('Please enter a comment', 'error');
+      return;
+    }
+    setLoadingReview(true);
+    try {
+      const res = await fetch(`${API_URL}/api/products/${id}/reviews`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userInfo.token}`,
+        },
+        body: JSON.stringify({ rating, comment }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to submit review');
+      }
+      showToast('Review submitted successfully!');
+      setComment('');
+      setRating(5);
+      fetchProduct(); // Refresh product info
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setLoadingReview(false);
+    }
+  };
 
   const handleAddToCart = () => {
     addToCart(product, qty);
@@ -110,7 +145,14 @@ const ProductScreen = () => {
         {/* Product Content details */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <div>
-            <span className="badge badge-warning" style={{ marginBottom: '0.75rem' }}>{product.brand}</span>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+              <span className="badge badge-warning">{product.brand}</span>
+              {product.user && (
+                <span className="badge" style={{ textTransform: 'none', background: 'rgba(99, 102, 241, 0.15)', color: 'var(--color-accent-light)', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+                  Seller: {product.user.name}
+                </span>
+              )}
+            </div>
             <h1 style={{ fontSize: '2.25rem', marginBottom: '0.5rem', fontFamily: 'var(--font-family-title)' }}>
               {product.name}
             </h1>
@@ -212,6 +254,103 @@ const ProductScreen = () => {
 
         </div>
       </div>
+
+      {/* Reviews Section */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', marginTop: '2rem' }}>
+        <h2 style={{ fontSize: '1.75rem', fontFamily: 'var(--font-family-title)', borderBottom: '1px solid var(--border-glass)', paddingBottom: '0.5rem' }}>
+          Reviews & Ratings
+        </h2>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: '2rem',
+          alignItems: 'start'
+        }}>
+          {/* List of Reviews */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <h3 style={{ fontSize: '1.2rem', color: 'var(--text-primary)' }}>Customer Reviews</h3>
+            {!product.reviews || product.reviews.length === 0 ? (
+              <div className="glass-card" style={{ padding: '1.5rem', color: 'var(--text-secondary)' }}>
+                No reviews yet. Be the first to review this product!
+              </div>
+            ) : (
+              product.reviews.map((review) => (
+                <div key={review._id} className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.25rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <strong style={{ color: 'var(--text-primary)' }}>{review.name}</strong>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      {new Date(review.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '2px' }}>
+                    {renderStars(review.rating)}
+                  </div>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.5' }}>
+                    {review.comment}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Leave a Review Form */}
+          <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <h3 style={{ fontSize: '1.2rem', color: 'var(--text-primary)' }}>Write a Customer Review</h3>
+            {userInfo ? (
+              <form onSubmit={submitReviewHandler} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div className="form-group">
+                  <label htmlFor="rating-select">Rating</label>
+                  <select
+                    id="rating-select"
+                    value={rating}
+                    onChange={(e) => setRating(Number(e.target.value))}
+                    className="form-input"
+                    style={{ background: 'var(--bg-secondary)', color: 'white', cursor: 'pointer' }}
+                  >
+                    <option value="5">5 - Excellent</option>
+                    <option value="4">4 - Very Good</option>
+                    <option value="3">3 - Good</option>
+                    <option value="2">2 - Fair</option>
+                    <option value="1">1 - Poor</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="comment-textarea">Comment</label>
+                  <textarea
+                    id="comment-textarea"
+                    rows="4"
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    className="form-input"
+                    style={{ resize: 'vertical', minHeight: '100px' }}
+                    placeholder="Describe your experience with this product..."
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loadingReview}
+                  className="btn btn-primary"
+                  style={{ padding: '0.85rem', width: '100%' }}
+                >
+                  {loadingReview ? 'Submitting Review...' : 'Submit Review'}
+                </button>
+              </form>
+            ) : (
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <p>You must be logged in to leave a review.</p>
+                <Link to={`/login?redirect=product/${product._id}`} className="btn btn-secondary" style={{ textDecoration: 'none' }}>
+                  Sign In to Write a Review
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 };

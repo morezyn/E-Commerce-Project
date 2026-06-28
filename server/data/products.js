@@ -7,8 +7,8 @@ const products = [
     category: 'Electronics',
     price: 299.99,
     countInStock: 15,
-    rating: 4.8,
-    numReviews: 24,
+    rating: 0,
+    numReviews: 0,
   },
   {
     name: 'KeyCraft Mechanical Keyboard',
@@ -18,8 +18,8 @@ const products = [
     category: 'Electronics',
     price: 149.99,
     countInStock: 8,
-    rating: 4.6,
-    numReviews: 18,
+    rating: 0,
+    numReviews: 0,
   },
   {
     name: 'Horizon Smartwatch X',
@@ -29,8 +29,8 @@ const products = [
     category: 'Wearables',
     price: 199.99,
     countInStock: 12,
-    rating: 4.5,
-    numReviews: 32,
+    rating: 0,
+    numReviews: 0,
   },
   {
     name: 'Zenith Curve 34" Monitor',
@@ -40,8 +40,8 @@ const products = [
     category: 'Electronics',
     price: 499.99,
     countInStock: 5,
-    rating: 4.9,
-    numReviews: 14,
+    rating: 0,
+    numReviews: 0,
   },
   {
     name: 'VoltStream 100W GaN Charger',
@@ -51,8 +51,8 @@ const products = [
     category: 'Accessories',
     price: 49.99,
     countInStock: 25,
-    rating: 4.4,
-    numReviews: 45,
+    rating: 0,
+    numReviews: 0,
   },
   {
     name: 'Nomad Leather Desk Mat',
@@ -62,8 +62,8 @@ const products = [
     category: 'Accessories',
     price: 79.99,
     countInStock: 20,
-    rating: 4.7,
-    numReviews: 22,
+    rating: 0,
+    numReviews: 0,
   },
 ];
 
